@@ -2,7 +2,7 @@
 using FluentAssertions;
 using Xunit;
 
-namespace EventStore.Tests
+namespace EventSourcing.Tests
 {
     public class AggregateTests
     {

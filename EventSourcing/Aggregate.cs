@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Reactive.Subjects;
 
-namespace EventStore
+namespace EventSourcing
 {
     public class Aggregate<T> : IDisposable where T : new()
     {

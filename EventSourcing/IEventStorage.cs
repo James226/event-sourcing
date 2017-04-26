@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace EventStore
+namespace EventSourcing
 {
     public interface IEventStorage
     {

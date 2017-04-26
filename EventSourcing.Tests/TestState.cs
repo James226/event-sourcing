@@ -1,4 +1,4 @@
-﻿namespace EventStore.Tests
+﻿namespace EventSourcing.Tests
 {
     public class TestState
     {

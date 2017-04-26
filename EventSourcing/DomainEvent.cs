@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace EventStore
+namespace EventSourcing
 {
     public class DomainEvent
     {
