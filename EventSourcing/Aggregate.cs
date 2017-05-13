@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reactive.Subjects;
+using System.Threading.Tasks;
 
 namespace EventSourcing
 {
@@ -9,10 +9,10 @@ namespace EventSourcing
         public Guid Id { get; }
         public T State { get; }
         public int Version { get; private set; }
-        public IObservable<DomainEvent> Events => _eventsSubject;
+        public IAsyncObservable<DomainEvent> Events => _eventsSubject;
 
         private readonly Dictionary<Type, Action<DomainEvent>> _handlers = new Dictionary<Type, Action<DomainEvent>>();
-        private readonly ISubject<DomainEvent> _eventsSubject = new Subject<DomainEvent>();
+        private readonly SerialObservable<DomainEvent> _eventsSubject = new SerialObservable<DomainEvent>();
 
         public Aggregate(Guid id)
         {
@@ -33,7 +33,7 @@ namespace EventSourcing
             }
         }
 
-        public void Update(DomainEvent evt)
+        public async Task Update(DomainEvent evt)
         {
             evt.Id = Id;
             evt.Version = this.Version + 1;
@@ -41,12 +41,12 @@ namespace EventSourcing
             try
             {
                 ApplyEvent(evt);
-                _eventsSubject.OnNext(evt);
+                await _eventsSubject.OnNext(evt);
                 this.Version = evt.Version;
             }
             catch (Exception e)
             {
-                _eventsSubject.OnError(e);
+                await _eventsSubject.OnError(e);
                 throw;
             }
         }
@@ -62,7 +62,12 @@ namespace EventSourcing
 
         public void Dispose()
         {
-            _eventsSubject.OnCompleted();
+            DisposeAsync().Wait();
+        }
+
+        public Task DisposeAsync()
+        {
+            return _eventsSubject.OnCompleted();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
 
@@ -61,10 +62,15 @@ namespace EventSourcing.Tests
             {
                 _aggregate = new Aggregate<TestState>(Guid.NewGuid());
                 _aggregate.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
-                _aggregate.Events.Subscribe(e => _receivedEvent = e);
+                _aggregate.Events.Subscribe<SetNameEvent>(e =>
+                {
+                    _receivedEvent = e;
+                    return Task.FromResult(0);
+                });
+
                 _name = "John";
                 _eventRaised = new SetNameEvent {Name = _name};
-                _aggregate.Update(_eventRaised);
+                _aggregate.Update(_eventRaised).Wait();
             }
 
             [Fact]
@@ -108,10 +114,13 @@ namespace EventSourcing.Tests
             {
                 _aggregate = new Aggregate<TestState>(Guid.NewGuid());
                 _aggregate.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
-                _aggregate.Events.Subscribe(onNext: e => throw new InvalidOperationException(), onError: _ => _errorRaised = true);
+                _aggregate.Events.Subscribe(new ObserverWrapper<DomainEvent>(
+                    e => throw new InvalidOperationException(), 
+                    _ => Task.FromResult(_errorRaised = true),
+                    () => Task.FromResult(0)));
                 try
                 {
-                    _aggregate.Update(new SetNameEvent { Name = "John" });
+                    _aggregate.Update(new SetNameEvent { Name = "John" }).Wait();
                 }
                 catch (Exception e)
                 {
@@ -122,7 +131,7 @@ namespace EventSourcing.Tests
             [Fact]
             public void ThenTheExceptionIsRethrown()
             {
-                _thrownException.Should().BeOfType<InvalidOperationException>();
+                _thrownException.InnerException.Should().BeOfType<InvalidOperationException>();
             }
 
             [Fact]
@@ -145,7 +154,7 @@ namespace EventSourcing.Tests
             public WhenDisposeIsInvoked()
             {
                 var aggregate = new Aggregate<TestState>(Guid.NewGuid());
-                aggregate.Events.Subscribe(onNext: _ => { }, onCompleted: () => { _completeRaised = true; });
+                aggregate.Events.Subscribe(new ObserverWrapper<DomainEvent>(_ => Task.FromResult(0), _ => Task.FromResult(0), () => Task.FromResult(_completeRaised = true)));
                 aggregate.Dispose();
             }
 

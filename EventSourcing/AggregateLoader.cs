@@ -20,7 +20,7 @@ namespace EventSourcing
         {
             var aggregate = new Aggregate<T>(id);
             _setHandlers?.Invoke(aggregate);
-            aggregate.Events.Subscribe(e => _eventStore.Store(e));
+            aggregate.Events.Subscribe(_eventStore.Store);
             _setObservers?.Invoke(aggregate);
             aggregate.Update(evt);
             return aggregate;

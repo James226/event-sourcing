@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reactive.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
@@ -12,16 +12,16 @@ namespace EventSourcing.Tests
         public class WhenCreateIsInvoked
         {
             private readonly Aggregate<TestState> _aggregate;
-            private readonly string _name = "Fred";
+            private const string Name = "Fred";
+            private readonly Mock<IEventStore> _eventStore;
+            private readonly SetNameEvent _event;
             private string _observedName;
-            private Mock<IEventStore> _eventStore;
-            private SetNameEvent _event;
 
             public WhenCreateIsInvoked()
             {
                 _eventStore = new Mock<IEventStore>();
                 var loader = new AggregateLoader<TestState>(SetHandlers, SetObservers, _eventStore.Object);
-                _event = new SetNameEvent {Name = _name};
+                _event = new SetNameEvent {Name = Name};
                 _aggregate = loader.Create(Guid.NewGuid(), _event);
             }
 
@@ -32,13 +32,13 @@ namespace EventSourcing.Tests
 
             private void SetObservers(Aggregate<TestState> aggregate)
             {
-                aggregate.Events.OfType<SetNameEvent>().Subscribe(e => _observedName = e.Name);
+                aggregate.Events.Subscribe<SetNameEvent>(e => Task.FromResult(_observedName = e.Name));
             }
 
             [Fact]
             public void ThenTheStateIsCorrect()
             {
-                _aggregate.State.Name.Should().Be(_name);
+                _aggregate.State.Name.Should().Be(Name);
             }
 
             [Fact]
@@ -50,7 +50,7 @@ namespace EventSourcing.Tests
             [Fact]
             public void ThenTheObservedNameIsCorrect()
             {
-                _observedName.Should().Be(_name);
+                _observedName.Should().Be(Name);
             }
         }
 
@@ -73,7 +73,7 @@ namespace EventSourcing.Tests
                 var loader = new AggregateLoader<TestState>(SetHandlers, SetObservers, eventStore.Object);
                 _aggregate = loader.Load(id).Result;
                 _raisedEvent = new DomainEvent();
-                _aggregate.Update(_raisedEvent);
+                _aggregate.Update(_raisedEvent).Wait();
             }
 
             private void SetHandlers(Aggregate<TestState> aggregate)
@@ -84,7 +84,11 @@ namespace EventSourcing.Tests
 
             private void SetObservers(Aggregate<TestState> aggregate)
             {
-                aggregate.Events.Subscribe(e => _observedEvents.Add(e));
+                aggregate.Events.Subscribe(e =>
+                {
+                    _observedEvents.Add(e);
+                    return Task.FromResult(0);
+                });
             }
 
             [Fact]
