@@ -1,7 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netstandard1.5</TargetFramework>
+    <PackageId>Maroon.EventSourcing</PackageId>
+    <Description>Simple event sourcing library</Description>
+    <PackageTags>event sourcing source</PackageTags>
+
+    <PackageVersion>1.0.0</PackageVersion>
+
+    <Authors>James226</Authors>
+
+    <ProjectUrl>http://github.com/James226/event-sourcing</ProjectUrl>
+
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Copyright>Copyright ©2018</Copyright>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.ComponentModel.TypeConverter" Version="4.3.0" />
+  </ItemGroup>
 </Project>

@@ -20,25 +20,15 @@ namespace EventSourcing.Tests
             public WhenCreateIsInvoked()
             {
                 _eventStore = new Mock<IEventStore>();
-                var loader = new AggregateLoader<TestState>(SetHandlers, SetObservers, _eventStore.Object);
+                var handlerSet = new Mock<IHandlerSet<TestState>>();
+                var loader = new AggregateLoader<TestState>(handlerSet.Object, SetObservers, _eventStore.Object);
                 _event = new SetNameEvent {Name = Name};
-                _aggregate = loader.Create(Guid.NewGuid(), _event);
+                _aggregate = loader.Create(Guid.NewGuid().ToString(), _event);
             }
 
-            private void SetHandlers(Aggregate<TestState> aggregate)
+            private void SetObservers(IAsyncObservable<DomainEvent> aggregate, TestState state)
             {
-                aggregate.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
-            }
-
-            private void SetObservers(Aggregate<TestState> aggregate)
-            {
-                aggregate.Events.Subscribe<SetNameEvent>(e => Task.FromResult(_observedName = e.Name));
-            }
-
-            [Fact]
-            public void ThenTheStateIsCorrect()
-            {
-                _aggregate.State.Name.Should().Be(Name);
+                aggregate.OfType<SetNameEvent>().Subscribe(new AsyncObserver<SetNameEvent>(e => Task.FromResult(_observedName = e.Name)));
             }
 
             [Fact]
@@ -64,37 +54,26 @@ namespace EventSourcing.Tests
             public WhenLoadIsInvoked()
             {
                 _observedEvents = new List<DomainEvent>();
-                var id = Guid.NewGuid();
+                var id = Guid.NewGuid().ToString();
                 var eventStore = new Mock<IEventStore>();
                 eventStore
                     .Setup(s => s.Load(id))
                     .ReturnsAsync(new[] { new SetNameEvent { Name = SetName } });
 
-                var loader = new AggregateLoader<TestState>(SetHandlers, SetObservers, eventStore.Object);
+                var handlers = new Mock<IHandlerSet<TestState>>();
+                var loader = new AggregateLoader<TestState>(handlers.Object, SetObservers, eventStore.Object);
                 _aggregate = loader.Load(id).Result;
                 _raisedEvent = new DomainEvent();
                 _aggregate.Update(_raisedEvent).Wait();
             }
 
-            private void SetHandlers(Aggregate<TestState> aggregate)
+            private void SetObservers(IAsyncObservable<DomainEvent> aggregate, TestState state)
             {
-                aggregate.When<DomainEvent>((s, e) => { });
-                aggregate.When<SetNameEvent>((s, e) => s.Name = e.Name);
-            }
-
-            private void SetObservers(Aggregate<TestState> aggregate)
-            {
-                aggregate.Events.Subscribe(e =>
+                aggregate.Subscribe(new AsyncObserver<DomainEvent>(e =>
                 {
                     _observedEvents.Add(e);
                     return Task.FromResult(0);
-                });
-            }
-
-            [Fact]
-            public void ThenTheStateIsCorrect()
-            {
-                _aggregate.State.Name.Should().Be(SetName);
+                }));
             }
 
             [Fact]

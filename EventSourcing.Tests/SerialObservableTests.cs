@@ -25,13 +25,13 @@ namespace EventSourcing.Tests
 
             public WhenOnNextIsCalled()
             {
-                var observable = new SerialObservable<DomainEvent>();
+                var observable = new AsyncSubject<DomainEvent>();
                 _observer = new Mock<IAsyncObserver<DomainEvent>>();
                 _extendedObserver = new Mock<IAsyncObserver<ExtendedEvent>>();
                 _nonExtendedObserver = new Mock<IAsyncObserver<NonExtendedEvent>>();
                 observable.Subscribe(_observer.Object);
-                observable.Subscribe(_extendedObserver.Object);
-                observable.Subscribe(_nonExtendedObserver.Object);
+                observable.OfType<ExtendedEvent>().Subscribe(_extendedObserver.Object);
+                observable.OfType<NonExtendedEvent>().Subscribe(_nonExtendedObserver.Object);
                 _event = new ExtendedEvent();
                 observable.OnNext(_event).Wait();
             }
@@ -61,7 +61,7 @@ namespace EventSourcing.Tests
 
             public WhenOnCompleteIsCalled()
             {
-                var observable = new SerialObservable<DomainEvent>();
+                var observable = new AsyncSubject<DomainEvent>();
                 _observer = new Mock<IAsyncObserver<DomainEvent>>();
                 observable.Subscribe(_observer.Object);
                 observable.OnCompleted().Wait();
@@ -81,7 +81,7 @@ namespace EventSourcing.Tests
 
             public WhenOnErrorIsCalled()
             {
-                var observable = new SerialObservable<DomainEvent>();
+                var observable = new AsyncSubject<DomainEvent>();
                 _observer = new Mock<IAsyncObserver<DomainEvent>>();
                 observable.Subscribe(_observer.Object);
                 _exception = new Exception();

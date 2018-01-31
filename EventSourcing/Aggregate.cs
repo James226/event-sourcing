@@ -6,23 +6,19 @@ namespace EventSourcing
 {
     public class Aggregate<T> : IDisposable where T : new()
     {
-        public Guid Id { get; }
+        public string Id { get; }
         public T State { get; }
         public int Version { get; private set; }
         public IAsyncObservable<DomainEvent> Events => _eventsSubject;
 
-        private readonly Dictionary<Type, Action<DomainEvent>> _handlers = new Dictionary<Type, Action<DomainEvent>>();
-        private readonly SerialObservable<DomainEvent> _eventsSubject = new SerialObservable<DomainEvent>();
+        private readonly AsyncSubject<DomainEvent> _eventsSubject = new AsyncSubject<DomainEvent>();
+        private readonly IHandlerSet<T> _handlers;
 
-        public Aggregate(Guid id)
+        public Aggregate(IHandlerSet<T> handlers, string id)
         {
+            _handlers = handlers;
             Id = id;
             State = new T();
-        }
-
-        public void When<THandlerEvent>(Action<T, THandlerEvent> handler) where THandlerEvent : DomainEvent
-        {
-            _handlers[typeof(THandlerEvent)] = e => handler(State, (THandlerEvent) e);
         }
 
         public void LoadFrom(IEnumerable<DomainEvent> pastEvents)
@@ -53,11 +49,8 @@ namespace EventSourcing
 
         private void ApplyEvent(DomainEvent @event)
         {
-            Action<DomainEvent> action;
-            if (_handlers.TryGetValue(@event.GetType(), out action))
-            {
-                action(@event);
-            }
+            var handler = _handlers.GetHandler(@event.GetType());
+            handler?.Invoke(State, @event);
         }
 
         public void Dispose()

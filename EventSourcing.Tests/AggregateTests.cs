@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Moq;
 using Xunit;
 
 namespace EventSourcing.Tests
@@ -10,12 +11,12 @@ namespace EventSourcing.Tests
         public class WhenAggregateIsCreated
         {
             private readonly Aggregate<TestState> _aggregate;
-            private readonly Guid _id;
+            private readonly string _id;
 
             public WhenAggregateIsCreated()
             {
-                _id = Guid.NewGuid();
-                _aggregate = new Aggregate<TestState>(_id);
+                _id = Guid.NewGuid().ToString();
+                _aggregate = new Aggregate<TestState>(Mock.Of<IHandlerSet<TestState>>(), _id);
             }
 
             [Fact]
@@ -39,8 +40,10 @@ namespace EventSourcing.Tests
             public WhenLoadFromIsInvoked()
             {
                 _name = "Bob";
-                _aggregate = new Aggregate<TestState>(Guid.NewGuid());
-                _aggregate.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
+                var handlerSet = new HandlerSet<TestState>();
+                handlerSet.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
+                
+                _aggregate = new Aggregate<TestState>(handlerSet, Guid.NewGuid().ToString());
                 _aggregate.LoadFrom(new[] { new SetNameEvent { Name = _name } });
             }
 
@@ -60,13 +63,15 @@ namespace EventSourcing.Tests
 
             public WhenAnEventIsAdded()
             {
-                _aggregate = new Aggregate<TestState>(Guid.NewGuid());
-                _aggregate.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
-                _aggregate.Events.Subscribe<SetNameEvent>(e =>
+                var handlers = new HandlerSet<TestState>();
+                handlers.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
+                
+                _aggregate = new Aggregate<TestState>(handlers, Guid.NewGuid().ToString());
+                _aggregate.Events.OfType<SetNameEvent>().Subscribe(new AsyncObserver<SetNameEvent>(e =>
                 {
                     _receivedEvent = e;
                     return Task.FromResult(0);
-                });
+                }));
 
                 _name = "John";
                 _eventRaised = new SetNameEvent {Name = _name};
@@ -112,9 +117,11 @@ namespace EventSourcing.Tests
 
             public WhenAnObserverThrows()
             {
-                _aggregate = new Aggregate<TestState>(Guid.NewGuid());
-                _aggregate.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
-                _aggregate.Events.Subscribe(new ObserverWrapper<DomainEvent>(
+                var handlers = new HandlerSet<TestState>();
+                handlers.When<SetNameEvent>((state, evt) => state.Name = evt.Name);
+
+                _aggregate = new Aggregate<TestState>(handlers, Guid.NewGuid().ToString());
+                _aggregate.Events.Subscribe(new AsyncObserver<DomainEvent>(
                     e => throw new InvalidOperationException(), 
                     _ => Task.FromResult(_errorRaised = true),
                     () => Task.FromResult(0)));
@@ -153,8 +160,8 @@ namespace EventSourcing.Tests
 
             public WhenDisposeIsInvoked()
             {
-                var aggregate = new Aggregate<TestState>(Guid.NewGuid());
-                aggregate.Events.Subscribe(new ObserverWrapper<DomainEvent>(_ => Task.FromResult(0), _ => Task.FromResult(0), () => Task.FromResult(_completeRaised = true)));
+                var aggregate = new Aggregate<TestState>(Mock.Of<IHandlerSet<TestState>>(), Guid.NewGuid().ToString());
+                aggregate.Events.Subscribe(new AsyncObserver<DomainEvent>(_ => Task.FromResult(0), _ => Task.FromResult(0), () => Task.FromResult(_completeRaised = true)));
                 aggregate.Dispose();
             }
 

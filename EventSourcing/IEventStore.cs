@@ -8,6 +8,6 @@ namespace EventSourcing
     public interface IEventStore
     {
         Task Store(DomainEvent evt);
-        Task<IEnumerable<DomainEvent>> Load(Guid id);
+        Task<IEnumerable<DomainEvent>> Load(string id);
     }
 }
